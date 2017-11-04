@@ -8,8 +8,8 @@ import Control.Monad
 import DateParser
 
 data Metadata = Metadata { name :: String,
-                           creation :: Maybe Date,
-                           change :: Maybe Date } deriving (Show)
+                           creation :: Date,
+                           change :: Date } deriving (Show)
 
 nameKey = "kMDItemFSName"
 createKey = "kMDItemFSCreationDate"
@@ -34,7 +34,14 @@ readMd (Nothing, stdout, Nothing, ph) =
       let md = filter (/="(null)") $ map (findKey pairs) [nameKey, createKey, changeKey]
       case length md of
         3 ->
-          return (Just Metadata { name=(md !! 0), creation=(parseDate $ md !! 1), change=(parseDate $ md !! 2) })
+          let
+            creation = parseDate $ md !! 1
+            change = parseDate $ md !! 2
+          in
+            case (creation, change) of
+              (Just crDate, Just chDate) ->
+                return (Just Metadata{name=(md !! 0), creation=crDate, change=chDate})
+              _ -> return (Nothing)
         _ ->
           return (Nothing)
     Nothing -> return (Nothing)
