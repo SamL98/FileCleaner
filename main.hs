@@ -1,15 +1,13 @@
 module Main where
-import System.Exit
+import System.Environment
 import System.Process
 import Data.List
 import System.IO
 import GHC.IO.Handle.Types
 import Control.Monad
+import Models
 import DateParser
-
-data Metadata = Metadata { name :: String,
-                           creation :: Date,
-                           change :: Date } deriving (Show)
+import Cleaner
 
 nameKey = "kMDItemFSName"
 createKey = "kMDItemFSCreationDate"
@@ -18,6 +16,10 @@ changeKey = "kMDItemFSContentChangeDate"
 filterFiles :: [String] -> [String]
 filterFiles files =
   filter (\file -> file !! 0 /= '#') files
+
+filterEmpty :: String -> Bool
+filterEmpty str =
+  (str /= "(null)") && (str /= "")
 
 findKey :: [(String, String)] -> String -> String
 findKey pairs key =
@@ -31,7 +33,8 @@ readMd (Nothing, stdout, Nothing, ph) =
     Just pipe -> do
       metadata <- hGetContents pipe
       let pairs = map (\x -> (x !! 0, x !! 2)) $ map (words) $ lines metadata
-      let md = filter (/="(null)") $ map (findKey pairs) [nameKey, createKey, changeKey]
+      let md = filter (filterEmpty) $ map (findKey pairs) [nameKey, createKey, changeKey]
+      putStrLn $ show md
       case length md of
         3 ->
           let
@@ -46,19 +49,34 @@ readMd (Nothing, stdout, Nothing, ph) =
           return (Nothing)
     Nothing -> return (Nothing)
 
+filterNone :: Maybe Metadata -> Bool
+filterNone md =
+  case md of
+    Just _ -> True
+    Nothing -> False
+
 dispMd :: Maybe Metadata -> IO ()
 dispMd md =
   case md of
     Just metadata -> putStrLn $ show metadata
     Nothing -> return ()
 
+getMd :: String -> IO (Maybe Metadata)
+getMd file =
+  createProcess (proc "mdls" [file]){std_out = CreatePipe} >>= readMd
+
 main :: IO ()
 main = do
-    files <- readProcess "ls" [] []
-    let filtered = filterFiles $ lines files
-    mapM (>>=dispMd) $ map ( \x ->
-            createProcess (proc "mdls" [x]){std_out = CreatePipe}
-            >>= readMd
-        ) $ filtered
-    putStrLn "Complete."
-     
+  args <- getArgs
+  case length args of
+    0 -> return ()
+    _ -> do
+      let dir = args !! 0
+      files <- readProcess "ls" [dir] []
+      todayStr <- readProcess "date" ["+%Y-%m-%d"] []
+      case parseDate $ filter (/='\n') todayStr of
+        Nothing -> return ()
+        Just today -> do
+          let filtered = map (\x -> dir++"/"++x) $ filterFiles $ lines files
+          mapM (>>=dispMd) $ map (getMd) filtered
+          putStrLn "Complete."

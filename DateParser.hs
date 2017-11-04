@@ -1,10 +1,7 @@
 module DateParser where
 import Data.List.Split
-import Debug.Trace
-
-data Date = Date { day :: Int,
-                   month :: Int,
-                   year :: Int } deriving (Show)
+--import Debug.Trace
+import Models
 
 dateComps :: String -> [Int]
 dateComps str = filter (>0) $ map (read) $ splitOn "-" str
