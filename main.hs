@@ -1,14 +1,15 @@
+module Main where
 import System.Exit
 import System.Process
 import Data.List
-import Data.List.Split
 import System.IO
 import GHC.IO.Handle.Types
 import Control.Monad
+import DateParser
 
 data Metadata = Metadata { name :: String,
-                           creation :: String,
-                           change :: String } deriving (Show)
+                           creation :: Maybe Date,
+                           change :: Maybe Date } deriving (Show)
 
 nameKey = "kMDItemFSName"
 createKey = "kMDItemFSCreationDate"
@@ -31,7 +32,7 @@ readMd (Nothing, stdout, Nothing, ph) =
       metadata <- hGetContents pipe
       let pairs = map (\x -> (x !! 0, x !! 2)) $ map (words) $ lines metadata
       let md = map (findKey pairs) [nameKey, createKey, changeKey]
-      return (Just Metadata { name=(md !! 0), creation=(md !! 1), change=(md !! 2) })
+      return (Just Metadata { name=(md !! 0), creation=(parseDate $ md !! 1), change=(parseDate $ md !! 2) })
     Nothing -> return (Nothing)
 
 dispMd :: Maybe Metadata -> IO ()
