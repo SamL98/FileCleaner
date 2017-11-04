@@ -10,17 +10,18 @@ data Metadata = Metadata { name :: String,
                            creation :: String,
                            change :: String } deriving (Show)
 
-mdKeys :: [String]
-mdKeys = ["kMDItemFSContentChangeDate", "kMDItemFSCreationDate", "kMDItemFSName"]
+nameKey = "kMDItemFSName"
+createKey = "kMDItemFSCreationDate"
+changeKey = "kMDItemFSContentChangeDate"
 
 filterFiles :: [String] -> [String]
 filterFiles files =
   filter (\file -> file !! 0 /= '#') files
 
-findKey :: [String] -> [String] -> String -> String
-findKey keys vals key =
-  case elemIndex key keys of
-    Just index -> vals !! index
+findKey :: [(String, String)] -> String -> String
+findKey pairs key =
+  case lookup key pairs of
+    Just value -> value
     Nothing -> ""
 
 readMd :: (Maybe Handle, Maybe Handle, Maybe Handle, ProcessHandle) -> IO (Maybe Metadata)
@@ -29,9 +30,7 @@ readMd (Nothing, stdout, Nothing, ph) =
     Just pipe -> do
       metadata <- hGetContents pipe
       let pairs = map (\x -> (x !! 0, x !! 2)) $ map (words) $ lines metadata
-      let keys = map (fst) pairs
-      let vals = map (snd) pairs
-      let md = map (findKey keys vals) $ reverse mdKeys
+      let md = map (findKey pairs) [nameKey, createKey, changeKey]
       return (Just Metadata { name=(md !! 0), creation=(md !! 1), change=(md !! 2) })
     Nothing -> return (Nothing)
 
