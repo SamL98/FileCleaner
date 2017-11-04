@@ -31,8 +31,12 @@ readMd (Nothing, stdout, Nothing, ph) =
     Just pipe -> do
       metadata <- hGetContents pipe
       let pairs = map (\x -> (x !! 0, x !! 2)) $ map (words) $ lines metadata
-      let md = map (findKey pairs) [nameKey, createKey, changeKey]
-      return (Just Metadata { name=(md !! 0), creation=(parseDate $ md !! 1), change=(parseDate $ md !! 2) })
+      let md = filter (/="(null)") $ map (findKey pairs) [nameKey, createKey, changeKey]
+      case length md of
+        3 ->
+          return (Just Metadata { name=(md !! 0), creation=(parseDate $ md !! 1), change=(parseDate $ md !! 2) })
+        _ ->
+          return (Nothing)
     Nothing -> return (Nothing)
 
 dispMd :: Maybe Metadata -> IO ()
