@@ -55,28 +55,43 @@ filterNone md =
     Just _ -> True
     Nothing -> False
 
-dispMd :: Maybe Metadata -> IO ()
+dispMd :: Maybe Metadata -> IO (Maybe Metadata)
 dispMd md =
   case md of
-    Just metadata -> putStrLn $ show metadata
-    Nothing -> return ()
+    Just metadata -> do
+		putStrLn $ show metadata
+		return (md)
+    Nothing -> return (Nothing)
 
 getMd :: String -> IO (Maybe Metadata)
 getMd file =
   createProcess (proc "mdls" [file]){std_out = CreatePipe} >>= readMd
 
+dispRelevant :: Date -> Maybe Metadata -> IO ()
+dispRelevant date metadata =
+	case metadata of
+		Just md ->
+			if checkRelevance date md
+			then
+				putStrLn $ name md
+			else
+				return ()
+		Nothing -> return ()
+
 main :: IO ()
 main = do
   args <- getArgs
   case length args of
-    0 -> return ()
+    0 -> putStrLn "No args given" 
     _ -> do
       let dir = args !! 0
       files <- readProcess "ls" [dir] []
       todayStr <- readProcess "date" ["+%Y-%m-%d"] []
       case parseDate $ filter (/='\n') todayStr of
-        Nothing -> return ()
+        Nothing -> putStrLn "Cannot parse today's date"
         Just today -> do
           let filtered = map (\x -> dir++"/"++x) $ filterFiles $ lines files
-          mapM (>>=dispMd) $ map (getMd) filtered
+          mapM (>>=(dispRelevant today)) $ 
+			--map (>>=dispMd) $ 
+			map (getMd) filtered
           putStrLn "Complete."
